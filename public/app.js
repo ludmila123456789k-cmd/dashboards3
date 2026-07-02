@@ -2,7 +2,6 @@ const SECTIONS = [
   { id: "roadmap", label: "Marketing Roadmap", icon: "map" },
   { id: "content", label: "Контент-календарь", icon: "calendar" },
   { id: "board", label: "Доска проектов", icon: "board" },
-  { id: "improvements", label: "Реестр улучшений", icon: "star" },
   { id: "employees", label: "Отчеты сотрудников", icon: "users" }
 ];
 
@@ -262,6 +261,7 @@ function upgradeCalendarData(target) {
 
 function render() {
   const section = SECTIONS.find(item => item.id === activeSection) || SECTIONS[0];
+  activeSection = section.id;
 
   app.innerHTML = `
     <div class="shell">
@@ -677,17 +677,29 @@ function renderEmployees() {
 function renderEmployeeTab(person, personIndex) {
   const employeeId = employeeKey(person, personIndex);
   const isActive = employeeId === activeEmployeeId;
+  const completedCount = employeeCompletedReportsForMonth(person, selectedEmployeeMonth());
   return `
     <div class="employee-tab ${isActive ? "active" : ""}">
       <button class="employee-tab-button" type="button" data-action="select-employee" data-employee-id="${escapeAttribute(employeeId)}">
         <span>${escapeHtml(person.name || "Сотрудник")}</span>
-        <span class="count-pill">${(person.reports || []).length}</span>
+        <span class="count-pill">${completedCount}</span>
       </button>
       ${isPublicView ? "" : `
         <input class="employee-tab-input" data-change="employee-name-field" data-person-index="${personIndex}" value="${escapeAttribute(person.name || "")}" placeholder="Фамилия">
       `}
     </div>
   `;
+}
+
+function selectedEmployeeMonth() {
+  const data = workspace.sections.employees || {};
+  return monthFromDate(data.day) || data.month || "";
+}
+
+function employeeCompletedReportsForMonth(person, month) {
+  return (person.reports || []).filter(report =>
+    (!month || String(report.date || "").startsWith(month)) && reportStatusValue(report) === "done"
+  ).length;
 }
 
 function renderEmployee(person, personIndex, day, month) {
