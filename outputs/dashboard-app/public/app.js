@@ -1,12 +1,5 @@
 const SECTIONS = [
-  { id: "site", label: "Сайт", icon: "globe" },
-  { id: "marketing", label: "Маркетинг", icon: "megaphone" },
-  { id: "roadmap", label: "Marketing Roadmap", icon: "map" },
-  { id: "content", label: "Контент-календарь", icon: "calendar" },
-  { id: "board", label: "Доска проектов", icon: "board" },
-  { id: "improvements", label: "Реестр улучшений", icon: "star" },
-  { id: "employees", label: "Отчеты сотрудников", icon: "users" },
-  { id: "executive", label: "Руководителю", icon: "target" }
+  { id: "employees", label: "Отчеты сотрудников", icon: "users" }
 ];
 
 const CONTENT_TYPES = ["статьи", "новости", "кейсы", "соцсети", "email", "выставки"];
@@ -42,8 +35,8 @@ const TEMPLATES = {
 };
 
 const DEFAULT_DASHBOARD = {
-  title: "Дашборд компании",
-  period: "Июнь 2026",
+  title: "konglomerat",
+  period: "Ежедневные отчеты",
   updatedAt: new Date().toISOString(),
   sections: {
     site: {
@@ -148,6 +141,7 @@ const DEFAULT_DASHBOARD = {
     employees: {
       updatedAt: new Date().toISOString(),
       month: "2026-06",
+      selectedDate: "2026-06-29",
       people: [
         { id: "ivanov", name: "Иванов", plan: 8, done: 7, reports: [
           { id: "r1", date: "2026-06-07", title: "SEO и структура", text: "Проверил посадочные страницы, подготовил список правок по каталогу.", completed: true },
@@ -185,7 +179,7 @@ const isPublicView = Boolean(publicToken);
 const canUseServer = location.protocol !== "file:";
 
 let dashboard = null;
-let activeSection = "site";
+let activeSection = "employees";
 let shareUrl = "";
 let editorUrl = "";
 let publicViewBaseUrl = "";
@@ -270,7 +264,7 @@ function mergeDashboard(source) {
   const merged = structuredClone(DEFAULT_DASHBOARD);
   if (!source || typeof source !== "object") return merged;
 
-  merged.title = source.title || merged.title;
+  merged.title = "konglomerat";
   merged.period = source.period || merged.period;
   merged.updatedAt = source.updatedAt || merged.updatedAt;
 
@@ -311,6 +305,9 @@ function normalizeDashboard(data) {
   data.sections.employees.people.forEach(person => {
     if (!Array.isArray(person.reports)) person.reports = [];
   });
+  if (!data.sections.employees.selectedDate) {
+    data.sections.employees.selectedDate = new Date().toISOString().slice(0, 10);
+  }
 
   return data;
 }
@@ -364,7 +361,7 @@ function renderLogin() {
 
 function render() {
   if (!dashboard) return;
-  if (!SECTIONS.some(section => section.id === activeSection)) activeSection = "site";
+  if (!SECTIONS.some(section => section.id === activeSection)) activeSection = "employees";
   const section = SECTIONS.find(item => item.id === activeSection) || SECTIONS[0];
   let sectionHtml = "";
   try {
@@ -380,7 +377,7 @@ function render() {
         <div class="brand">
           <div class="brand-mark">${icon("target")}</div>
           <div>
-            <strong>Dashboard Studio</strong>
+            <strong>konglomerat</strong>
             <span>${isPublicView ? "просмотр" : "редактор"}</span>
           </div>
         </div>
@@ -862,23 +859,23 @@ function renderJourney() {
 
 function renderEmployees() {
   const data = dashboard.sections.employees;
-  const monthLabel = formatMonth(data.month);
+  const selectedDate = data.selectedDate || new Date().toISOString().slice(0, 10);
   return `
     <div class="employee-layout">
       <div>
         <div class="panel">
           <div class="panel-title">
-            Отчеты за ${escapeHtml(monthLabel)}
+            Отчеты за ${escapeHtml(formatDate(selectedDate))}
             ${isPublicView ? "" : `
               <span class="inline-actions">
-                <button class="button small" type="button" data-action="prev-month">${icon("left")} Месяц</button>
-                <input class="field month-field" type="month" data-change="employee-month" value="${escapeAttribute(data.month || "")}">
-                <button class="button small" type="button" data-action="next-month">Месяц ${icon("right")}</button>
+                <button class="button small" type="button" data-action="prev-day">${icon("left")} День</button>
+                <input class="field day-field" type="date" data-change="employee-date" value="${escapeAttribute(selectedDate)}">
+                <button class="button small" type="button" data-action="next-day">День ${icon("right")}</button>
               </span>
             `}
           </div>
           <div class="employee-list">
-            ${data.people.map((person, personIndex) => renderEmployee(person, personIndex, data.month)).join("")}
+            ${data.people.map((person, personIndex) => renderEmployee(person, personIndex, selectedDate)).join("")}
           </div>
         </div>
       </div>
@@ -891,26 +888,27 @@ function renderEmployees() {
 }
 
 function renderEmployee(person, personIndex, month) {
-  const reports = (person.reports || []).filter(report => !month || String(report.date || "").startsWith(month));
+  const reports = (person.reports || []).filter(report => !month || String(report.date || "") === month);
   const rate = ratio(person.done, person.plan);
 
   return `
-    <details class="employee-card" open>
+    <details class="employee-card">
       <summary class="employee-summary">
         <div>
           ${editableText(person.name, `employee-name-${personIndex}`, "employee-name")}
           <div class="employee-rate">Выполнил ${formatNumber(person.done)} из ${formatNumber(person.plan)} · ${Math.round(rate * 100)}%</div>
         </div>
-        ${isPublicView ? "" : `<button class="button small" type="button" data-action="add-report" data-person-index="${personIndex}">${icon("plus")} Отчет</button>`}
+        <span class="count-pill">${reports.length}</span>
       </summary>
       <div class="employee-body">
         ${isPublicView ? "" : `
           <div class="inline-actions">
             <input class="field compact-field" data-change="employee-field" data-person-index="${personIndex}" data-field="plan" value="${escapeAttribute(person.plan)}" placeholder="План">
             <input class="field compact-field" data-change="employee-field" data-person-index="${personIndex}" data-field="done" value="${escapeAttribute(person.done)}" placeholder="Выполнил">
+            <button class="button small" type="button" data-action="add-report" data-person-index="${personIndex}">${icon("plus")} Отчет за день</button>
           </div>
         `}
-        ${reports.map(report => renderReport(report, personIndex)).join("") || `<div class="empty">Нет отчетов за выбранный месяц</div>`}
+        ${reports.map(report => renderReport(report, personIndex)).join("") || `<div class="empty">Нет отчетов за выбранный день</div>`}
         ${isPublicView ? "" : `<button class="button small danger" type="button" data-action="remove-employee" data-person-index="${personIndex}">${icon("trash")} Удалить сотрудника</button>`}
       </div>
     </details>
@@ -1102,8 +1100,8 @@ async function handleAction(button) {
   if (action === "add-report") addReport(Number(button.dataset.personIndex));
   if (action === "remove-report") removeReport(Number(button.dataset.personIndex), Number(button.dataset.reportIndex));
   if (action === "remove-employee") removeAt(dashboard.sections.employees.people, Number(button.dataset.personIndex), "employees");
-  if (action === "prev-month") shiftMonth(-1);
-  if (action === "next-month") shiftMonth(1);
+  if (action === "prev-day") shiftDay(-1);
+  if (action === "next-day") shiftDay(1);
 }
 
 function handleChange(input) {
@@ -1137,6 +1135,13 @@ function handleChange(input) {
   }
   if (change === "employee-month") {
     dashboard.sections.employees.month = input.value || dashboard.sections.employees.month;
+    touch("employees", false);
+    saveDashboard();
+    render();
+    return;
+  }
+  if (change === "employee-date") {
+    dashboard.sections.employees.selectedDate = input.value || dashboard.sections.employees.selectedDate;
     touch("employees", false);
     saveDashboard();
     render();
@@ -1396,10 +1401,10 @@ function addEmployee() {
 }
 
 function addReport(personIndex) {
-  const month = dashboard.sections.employees.month || new Date().toISOString().slice(0, 7);
+  const selectedDate = dashboard.sections.employees.selectedDate || new Date().toISOString().slice(0, 10);
   dashboard.sections.employees.people[personIndex].reports.push({
     id: newId("r"),
-    date: `${month}-01`,
+    date: selectedDate,
     title: "Новый отчет",
     text: "",
     completed: false
@@ -1422,6 +1427,16 @@ function shiftMonth(delta) {
   const [year, month] = current.split("-").map(Number);
   const date = new Date(year, month - 1 + delta, 1);
   dashboard.sections.employees.month = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}`;
+  touch("employees", false);
+  saveDashboard();
+  render();
+}
+
+function shiftDay(delta) {
+  const current = dashboard.sections.employees.selectedDate || new Date().toISOString().slice(0, 10);
+  const date = new Date(`${current}T00:00:00`);
+  date.setDate(date.getDate() + delta);
+  dashboard.sections.employees.selectedDate = date.toISOString().slice(0, 10);
   touch("employees", false);
   saveDashboard();
   render();

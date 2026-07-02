@@ -236,7 +236,7 @@ function baseUrl(req) {
 }
 
 function publicUrl(req, token) {
-  return `${currentPublicViewBaseUrl() || baseUrl(req)}/?view=${token}`;
+  return `${currentPublicViewBaseUrl() || baseUrl(req)}/view/${token}`;
 }
 
 function editorUrl(req) {

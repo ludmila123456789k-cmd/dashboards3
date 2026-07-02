@@ -967,6 +967,21 @@ tr:last-child td {
   margin-top: 5px;
 }
 
+.inline-actions {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.compact-field {
+  max-width: 120px;
+}
+
+.day-field {
+  max-width: 160px;
+}
+
 .employee-layout {
   display: grid;
   gap: 18px;
